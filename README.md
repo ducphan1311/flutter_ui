@@ -1,4 +1,4 @@
-# flutter_ui_extra
+# flutter_ui
 
 ## Getting Started
 
