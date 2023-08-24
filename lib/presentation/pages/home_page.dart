@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application/presentation/blocs/auth/auth_bloc.dart';
-import 'package:flutter_application/presentation/blocs/auth_navigation/auth_navigation_bloc.dart';
-import 'package:flutter_application/presentation/blocs/auth_navigation/auth_navigation_state.dart';
-import 'package:flutter_application/presentation/blocs/home/home_bloc.dart';
-import 'package:flutter_application/presentation/blocs/home/home_state.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_application/domain/entities/movie_entity.dart';
+import 'package:flutter_application/domain/repositories/movie_repository.dart';
+import 'package:flutter_application/presentation/widgets/movie_item_widget.dart';
+import 'package:flutter_stream_paging/fl_stream_paging.dart';
+import 'package:get_it/get_it.dart';
+
+import '../../data/data_sources/local/list_view_data_source.dart';
 
 class HomePage extends StatefulWidget {
   static const path = 'HomePage';
+
   const HomePage({Key? key}) : super(key: key);
 
   @override
@@ -15,72 +17,44 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late ListViewDataSource dataSource;
+  MovieRepository movieRepository = GetIt.instance.get();
+
   @override
   void initState() {
     super.initState();
-    context.read<HomeBloc>().fetchDefaultData();
+    dataSource = ListViewDataSource(movieRepository);
   }
 
   @override
   Widget build(BuildContext context) {
-    var profile = context
-        .watch<AuthBloc>()
-        .state
-        .mapOrNull(authorized: (auth) => auth.profileModel);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home Page'),
+        title: Text('Popular list'),
       ),
-      drawer: Drawer(
-        child: profile != null
-            ? Column(
-                children: [
-                  const SizedBox(
-                    height: 32,
-                  ),
-                  Text('Helu ${profile.userName}'),
-                  const SizedBox(
-                    height: 16,
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<AuthBloc>().logout();
-                      context.read<HomeBloc>().fetchDefaultData();
-                    },
-                    child: Text('LogOut'),
-                  ),
-                ],
-              )
-            : ElevatedButton(
-                onPressed: () {
-                  context
-                      .read<AuthNavigationBloc>()
-                      .setState(AuthNavigationState.unAuthorized());
-                },
-                child: Text('Login'),
-              ),
-      ),
-      body: SizedBox(
-        width: double.infinity,
-        height: double.infinity,
-        child: BlocBuilder<HomeBloc, HomeState>(builder: (context, state) {
-          return state.when(
-            (defaultData) {
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(defaultData),
-                ],
-              );
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: PagingGridView<int, MovieEntity>(
+          builderDelegate: PagedChildBuilderDelegate<MovieEntity>(
+            itemBuilder: (context, data, child, onUpdate, onDelete) {
+              return MovieItemWidget(item: data);
             },
-            loading: () => Center(
-              child: CircularProgressIndicator(),
+          ),
+          pageDataSource: dataSource,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            childAspectRatio: 100 / 150,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            crossAxisCount: 2,
+          ),
+          errorBuilder: (_, err) => SizedBox(
+            child: Center(
+              child: Text(err.toString()),
             ),
-            error: (e) => Center(
-              child: Text(e),
-            ),
-          );
-        }),
+          ),
+          invisibleItemsThreshold: 3,
+
+        ),
       ),
     );
   }
